@@ -1,0 +1,83 @@
+//tradingmanuale, indicatore di risk management dinamico
+
+
+//@version=5
+indicator("risk management V20250529_1020", overlay = true, precision=1)
+account_balance = input.int(5000 ,"Account Initial Balance")
+max_risk = input.float(1, "Maximum Risk Percentage")
+loss_time = input.int(4, "Number of losses before risk")
+multiplier = input.float(0.25, "Multiplier")
+
+
+getPercentage(percentage,amount) => amount / 100 * percentage
+calculateDDBalance(percentageAmount, balance) => balance - percentageAmount * loss_time
+calculateDUBalance(percentageAmount, balance) => balance + percentageAmount * loss_time
+
+
+// DD Risk Management
+
+
+var t = table.new(position = position.top_right, columns = 3, rows = 11, border_color = color.black, frame_width = 200)
+t.cell(0, 1, 'DD Management', text_color = color.black, text_size = size.small)
+t.cell(0, 2, 'Balance: ' + str.tostring(account_balance) + ' - Risk: ' + str.tostring(max_risk) + '%', text_color = color.black, text_size = size.small)
+
+
+var balance2 = calculateDDBalance(getPercentage(max_risk, account_balance), account_balance)
+var balance3 = calculateDDBalance(getPercentage(max_risk - multiplier, balance2), balance2)
+var balance4 = calculateDDBalance(getPercentage(max_risk - (multiplier * 2), balance3), balance3)
+
+
+t.cell(0, 3, 'Balance: ' + str.tostring(balance2) + ' - Risk: ' + str.tostring(max_risk - multiplier) + '%', text_color = color.black, text_size = size.small)
+t.cell(0, 4, 'Balance: ' + str.tostring(balance3) + ' - Risk: ' + str.tostring(max_risk - (multiplier * 2)) + '%', text_color = color.black, text_size = size.small)
+t.cell(0, 5, 'Balance: ' + str.tostring(balance4) + ' - Risk: ' + str.tostring(max_risk - (multiplier * 3)) + '%', text_color = color.black, text_size = size.small)
+
+
+// DU Risk Management
+t.cell(1, 1, 'DU Management', text_color = color.black, text_size = size.small)
+t.cell(1, 2, 'Balance: ' + str.tostring(account_balance) + ' - Risk: ' + str.tostring(max_risk) + '%', text_color = color.black, text_size = size.small)
+
+
+var balance5 = calculateDUBalance(getPercentage(max_risk, account_balance), account_balance)
+var balance6 = calculateDUBalance(getPercentage(max_risk + multiplier, balance5), balance5)
+var balance7 = calculateDUBalance(getPercentage(max_risk + (multiplier * 2), balance6), balance6)
+
+
+t.cell(1, 3, 'Balance: ' + str.tostring(balance5) + ' - Risk: ' + str.tostring(max_risk + multiplier) + '%', text_color = color.black, text_size = size.small)
+t.cell(1, 4, 'Balance: ' + str.tostring(balance6) + ' - Risk: ' + str.tostring(max_risk + (multiplier * 2)) + '%', text_color = color.black, text_size = size.small)
+t.cell(1, 5, 'Balance: ' + str.tostring(balance7) + ' - Risk: ' + str.tostring(max_risk + (multiplier * 3)) + '%', text_color = color.black, text_size = size.small)
+
+
+// Calcolo Lottaggio
+
+
+// Parametri di input
+percentuale_rischio = input.float(0.5, title="Percentuale di Rischio (%)", group = 'Lot Size Calculation')
+min_pips_stop_loss = input(10, title="Min Stop Loss (pips)", group = 'Lot Size Calculation')
+pips_stop_loss = input(10, title="Max Stop Loss (pips)", group = 'Lot Size Calculation')
+
+
+importo_rischio = (percentuale_rischio / 100) * account_balance
+valore_pip = syminfo.mintick * syminfo.pointvalue
+counter = 1
+
+
+// Mostra la dimensione della posizione sul grafico
+t.cell(2, 1, 'Lot Size', text_color = color.black, text_size = size.small)
+
+
+for i = min_pips_stop_loss to pips_stop_loss by 1
+    counter := counter+1
+    // Calcola l'importo di rischio
+    dimensione_posizione = importo_rischio / (valore_pip * i)
+
+
+    // Converti la dimensione della posizione in micro lotti
+    dimensione_micro_lotti = dimensione_posizione / 1000000
+
+
+    t.cell(2, counter, str.tostring(dimensione_micro_lotti, "#.##") + " x " + str.tostring(i) + " Pips SL" , text_color = color.black, text_size = size.small)
+
+
+// Disegna la dimensione della posizione
+//plot(dimensione_posizione, style=plot.style_histogram, color=color.green, linewidth=1, title="Dimensione Posizione (Lotti)")
+
