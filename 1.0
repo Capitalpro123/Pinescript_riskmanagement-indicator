@@ -2,7 +2,7 @@
 
 
 //@version=5
-indicator("risk management V20250529_1020", overlay = true, precision=1)
+indicator("risk management", overlay = true, precision=1)
 account_balance = input.int(5000 ,"Account Initial Balance")
 max_risk = input.float(1, "Maximum Risk Percentage")
 loss_time = input.int(4, "Number of losses before risk")
