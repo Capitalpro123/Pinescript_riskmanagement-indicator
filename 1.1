@@ -1,0 +1,103 @@
+//@version=5
+indicator("Dynamic Risk Management", overlay=true, precision=1)
+
+//═══════════════════════════════════════════════════════════════════════════════
+//                            INPUT SETTINGS
+//═══════════════════════════════════════════════════════════════════════════════
+
+account_balance = input.int(5000, "Account Initial Balance")
+max_risk = input.float(1, "Maximum Risk Percentage")
+loss_count = input.int(4, "Number of Losses Before Risk Adjustment")
+multiplier = input.float(0.25, "Risk Adjustment Multiplier")
+
+//═══════════════════════════════════════════════════════════════════════════════
+//                            CALCULATION FUNCTIONS
+//═══════════════════════════════════════════════════════════════════════════════
+
+// Calculate percentage of amount
+getPercentage(percentage, amount) => 
+    amount / 100 * percentage
+
+// Calculate balance after drawdown (DD)
+calculateDDBalance(percentageAmount, balance) => 
+    balance - percentageAmount * loss_count
+
+// Calculate balance after drawup (DU)
+calculateDUBalance(percentageAmount, balance) => 
+    balance + percentageAmount * loss_count
+
+//═══════════════════════════════════════════════════════════════════════════════
+//                        TABLE DISPLAY - DD/DU MANAGEMENT
+//═══════════════════════════════════════════════════════════════════════════════
+
+var t = table.new(position=position.top_right, columns=3, rows=11, 
+                  border_color=color.black, frame_width=200)
+
+// Header
+t.cell(0, 1, 'DD Management', text_color=color.black, text_size=size.small)
+t.cell(0, 2, 'Balance: ' + str.tostring(account_balance) + ' - Risk: ' + str.tostring(max_risk) + '%', 
+       text_color=color.black, text_size=size.small)
+
+// DD Calculations (Drawdown - decreasing risk)
+var dd_balance_1 = calculateDDBalance(getPercentage(max_risk, account_balance), account_balance)
+var dd_balance_2 = calculateDDBalance(getPercentage(max_risk - multiplier, dd_balance_1), dd_balance_1)
+var dd_balance_3 = calculateDDBalance(getPercentage(max_risk - (multiplier * 2), dd_balance_2), dd_balance_2)
+
+t.cell(0, 3, 'Balance: ' + str.tostring(dd_balance_1) + ' - Risk: ' + str.tostring(max_risk - multiplier) + '%', 
+       text_color=color.black, text_size=size.small)
+t.cell(0, 4, 'Balance: ' + str.tostring(dd_balance_2) + ' - Risk: ' + str.tostring(max_risk - (multiplier * 2)) + '%', 
+       text_color=color.black, text_size=size.small)
+t.cell(0, 5, 'Balance: ' + str.tostring(dd_balance_3) + ' - Risk: ' + str.tostring(max_risk - (multiplier * 3)) + '%', 
+       text_color=color.black, text_size=size.small)
+
+// DU Header
+t.cell(1, 1, 'DU Management', text_color=color.black, text_size=size.small)
+t.cell(1, 2, 'Balance: ' + str.tostring(account_balance) + ' - Risk: ' + str.tostring(max_risk) + '%', 
+       text_color=color.black, text_size=size.small)
+
+// DU Calculations (Drawup - increasing risk)
+var du_balance_1 = calculateDUBalance(getPercentage(max_risk, account_balance), account_balance)
+var du_balance_2 = calculateDUBalance(getPercentage(max_risk + multiplier, du_balance_1), du_balance_1)
+var du_balance_3 = calculateDUBalance(getPercentage(max_risk + (multiplier * 2), du_balance_2), du_balance_2)
+
+t.cell(1, 3, 'Balance: ' + str.tostring(du_balance_1) + ' - Risk: ' + str.tostring(max_risk + multiplier) + '%', 
+       text_color=color.black, text_size=size.small)
+t.cell(1, 4, 'Balance: ' + str.tostring(du_balance_2) + ' - Risk: ' + str.tostring(max_risk + (multiplier * 2)) + '%', 
+       text_color=color.black, text_size=size.small)
+t.cell(1, 5, 'Balance: ' + str.tostring(du_balance_3) + ' - Risk: ' + str.tostring(max_risk + (multiplier * 3)) + '%', 
+       text_color=color.black, text_size=size.small)
+
+//═══════════════════════════════════════════════════════════════════════════════
+//                        LOT SIZE CALCULATION
+//═══════════════════════════════════════════════════════════════════════════════
+
+// Input settings
+risk_percentage = input.float(0.5, title="Risk Percentage (%)", group='Lot Size Calculation')
+min_stop_loss_pips = input(10, title="Min Stop Loss (pips)", group='Lot Size Calculation')
+max_stop_loss_pips = input(10, title="Max Stop Loss (pips)", group='Lot Size Calculation')
+
+// Calculate risk amount in account currency
+risk_amount = (risk_percentage / 100) * account_balance
+
+// Calculate pip value
+pip_value = syminfo.mintick * syminfo.pointvalue
+
+// Counter for table rows
+var counter = 1
+
+// Lot Size Header
+t.cell(2, 1, 'Lot Size', text_color=color.black, text_size=size.small)
+
+// Loop through stop loss range and calculate position size
+for i = min_stop_loss_pips to max_stop_loss_pips by 1
+    counter := counter + 1
+    
+    // Calculate position size
+    position_size = risk_amount / (pip_value * i)
+    
+    // Convert position size to micro lots
+    position_size_micro_lots = position_size / 1000000
+    
+    // Display in table
+    t.cell(2, counter, str.tostring(position_size_micro_lots, "#.##") + " x " + str.tostring(i) + " Pips SL", 
+           text_color=color.black, text_size=size.small)
